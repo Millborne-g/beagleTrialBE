@@ -40,7 +40,7 @@ async function generateRadarImage(radarData, filename) {
         const latRange = bounds.north - bounds.south;
         const lonRange = bounds.east - bounds.west;
 
-        // Draw each data point
+        // Draw each data point with larger radius for smooth coverage
         for (const point of dataPoints) {
             // Convert lat/lon to pixel coordinates
             const x = Math.floor(
@@ -55,19 +55,13 @@ async function generateRadarImage(radarData, filename) {
                 // Get color for this dBZ value
                 const color = getColorForDBZ(point.dbz);
 
-                // Set pixel color
-                const pixelIndex = (y * width + x) * 4;
-                buffer[pixelIndex] = color[0]; // R
-                buffer[pixelIndex + 1] = color[1]; // G
-                buffer[pixelIndex + 2] = color[2]; // B
-                buffer[pixelIndex + 3] = color[3]; // A
-
-                // Optional: Add neighboring pixels for better visibility (simple blur/spread)
-                drawPoint(buffer, x, y, width, height, color, 2);
+                // Draw larger points for thick, solid radar coverage
+                // Radius of 14 creates very thick, professional radar appearance
+                drawPoint(buffer, x, y, width, height, color, 12);
             }
         }
 
-        // Create image using sharp
+        // Create image using sharp with slight blur for professional smoothness
         const outputPath = path.join(IMAGES_DIR, filename);
 
         await sharp(buffer, {
@@ -77,6 +71,7 @@ async function generateRadarImage(radarData, filename) {
                 channels: 4,
             },
         })
+            .blur(1.5) // More blur for thick, smooth radar appearance
             .png()
             .toFile(outputPath);
 
@@ -90,7 +85,7 @@ async function generateRadarImage(radarData, filename) {
 }
 
 /**
- * Draw a point with radius (for better visibility)
+ * Draw a point with radius and smooth blending (for professional radar appearance)
  * @param {Buffer} buffer - Image buffer
  * @param {number} centerX - Center X coordinate
  * @param {number} centerY - Center Y coordinate
@@ -102,21 +97,48 @@ async function generateRadarImage(radarData, filename) {
 function drawPoint(buffer, centerX, centerY, width, height, color, radius = 1) {
     for (let dy = -radius; dy <= radius; dy++) {
         for (let dx = -radius; dx <= radius; dx++) {
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
             // Check if within circle
-            if (dx * dx + dy * dy <= radius * radius) {
+            if (distance <= radius) {
                 const x = centerX + dx;
                 const y = centerY + dy;
 
                 if (x >= 0 && x < width && y >= 0 && y < height) {
                     const pixelIndex = (y * width + x) * 4;
 
-                    // Blend with existing pixel if it has a value
+                    // Calculate fade factor for smoother edges (minimal fade for solid coverage)
+                    const fadeFactor = 1 - (distance / radius) * 0.15; // Less fade = more solid
+                    const adjustedAlpha = Math.floor(color[3] * fadeFactor);
+
+                    // Blend with existing pixel for smooth overlaps
                     const existingAlpha = buffer[pixelIndex + 3];
-                    if (existingAlpha === 0 || color[3] > existingAlpha) {
+
+                    if (existingAlpha === 0) {
+                        // Empty pixel, just set it
                         buffer[pixelIndex] = color[0]; // R
                         buffer[pixelIndex + 1] = color[1]; // G
                         buffer[pixelIndex + 2] = color[2]; // B
-                        buffer[pixelIndex + 3] = color[3]; // A
+                        buffer[pixelIndex + 3] = adjustedAlpha; // A
+                    } else {
+                        // Always blend colors for thick, smooth coverage
+                        const blendFactor = 0.8; // 80% new, 20% old for more solid appearance
+                        buffer[pixelIndex] = Math.floor(
+                            color[0] * blendFactor +
+                                buffer[pixelIndex] * (1 - blendFactor)
+                        );
+                        buffer[pixelIndex + 1] = Math.floor(
+                            color[1] * blendFactor +
+                                buffer[pixelIndex + 1] * (1 - blendFactor)
+                        );
+                        buffer[pixelIndex + 2] = Math.floor(
+                            color[2] * blendFactor +
+                                buffer[pixelIndex + 2] * (1 - blendFactor)
+                        );
+                        buffer[pixelIndex + 3] = Math.max(
+                            existingAlpha,
+                            adjustedAlpha
+                        );
                     }
                 }
             }

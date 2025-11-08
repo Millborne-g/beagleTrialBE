@@ -160,7 +160,7 @@ async function generateSampleData(filePath) {
 
     // Generate sample data points in a grid
     const dataPoints = [];
-    const gridSize = 0.5; // degrees
+    const gridSize = 0.2; // degrees (smaller = more points = thicker coverage)
 
     // Create pseudo-random but consistent storm positions based on time
     const storm1X = 2 + Math.sin(stormSeed * 0.5) * 3;
