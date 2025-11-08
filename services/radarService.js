@@ -179,9 +179,80 @@ async function initialize(baseUrl) {
     }
 }
 
+/**
+ * Get multiple radar frames for animation
+ * @param {number} count - Number of frames to retrieve
+ * @param {string} baseUrl - Base URL for image serving
+ * @returns {Promise<Array>} - Array of radar frame data
+ */
+async function getRadarFrames(count = 10, baseUrl) {
+    try {
+        console.log(`Fetching ${count} radar frames for animation...`);
+        
+        const imageGenerator = require("./imageGenerator");
+        const path = require("path");
+        const fs = require("fs").promises;
+        
+        // Get all available image files
+        const IMAGES_DIR = path.join(__dirname, "..", "images");
+        const files = await fs.readdir(IMAGES_DIR);
+        
+        // Filter radar images (not thumbnails or fallback)
+        const radarFiles = [];
+        for (const file of files) {
+            if (file.startsWith("radar_") && file.endsWith(".png") && !file.includes("thumbnail") && !file.includes("fallback")) {
+                const filePath = path.join(IMAGES_DIR, file);
+                const stats = await fs.stat(filePath);
+                
+                // Extract timestamp from filename: radar_<timestamp>.png
+                const timestampStr = file.replace("radar_", "").replace(".png", "");
+                const timestamp = new Date(parseInt(timestampStr));
+                
+                radarFiles.push({
+                    filename: file,
+                    path: filePath,
+                    timestamp: timestamp,
+                    mtime: stats.mtime,
+                });
+            }
+        }
+        
+        // Sort by timestamp (newest first)
+        radarFiles.sort((a, b) => b.timestamp - a.timestamp);
+        
+        // Take requested count
+        const selectedFiles = radarFiles.slice(0, count);
+        
+        // Build frame data
+        const frames = selectedFiles.map(file => ({
+            timestamp: file.timestamp.toISOString(),
+            imageUrl: imageGenerator.getImageUrl(file.filename, baseUrl),
+            bounds: {
+                north: 49.0,
+                south: 25.0,
+                east: -66.0,
+                west: -125.0,
+            },
+            metadata: {
+                dataType: "RALA",
+                source: "MRMS",
+                units: "dBZ",
+            },
+        }));
+        
+        console.log(`Retrieved ${frames.length} frames for animation`);
+        return frames;
+    } catch (error) {
+        console.error("Error fetching radar frames:", error.message);
+        // Return empty array if no frames available
+        return [];
+    }
+}
+
 module.exports = {
     processLatestRadarData,
     getAvailableTimestamps,
     getRadarDataByTimestamp,
     initialize,
+    getRadarFrames,
 };

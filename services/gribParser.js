@@ -160,50 +160,51 @@ async function generateSampleData(filePath) {
 
     // Generate sample data points in a grid
     const dataPoints = [];
-    const gridSize = 0.2; // degrees (smaller = more points = thicker coverage)
+    const gridSize = 0.15; // degrees - finer grid for better detail
 
     // Create pseudo-random but consistent storm positions based on time
-    const storm1X = 2 + Math.sin(stormSeed * 0.5) * 3;
-    const storm1Y = 1 + Math.cos(stormSeed * 0.3) * 2;
-    const storm2X = -3 + Math.cos(stormSeed * 0.7) * 4;
-    const storm2Y = -2 + Math.sin(stormSeed * 0.4) * 3;
-    const storm3X = 1 + Math.sin(stormSeed * 0.9) * 2;
-    const storm3Y = -3 + Math.cos(stormSeed * 0.6) * 2;
+    // Storms move slowly across the map over time
+    const storm1X = -2 + Math.sin(stormSeed * 0.3) * 5;
+    const storm1Y = 0.5 + Math.cos(stormSeed * 0.2) * 3;
+    const storm2X = 2 + Math.cos(stormSeed * 0.4) * 4;
+    const storm2Y = -1 + Math.sin(stormSeed * 0.3) * 2;
 
-    // Vary storm intensities over time
-    const intensity1 = 60 + Math.sin(stormSeed * 0.2) * 15;
-    const intensity2 = 45 + Math.cos(stormSeed * 0.3) * 15;
-    const intensity3 = 35 + Math.sin(stormSeed * 0.4) * 15;
+    // Vary storm intensities over time (more realistic ranges)
+    const intensity1 = 55 + Math.sin(stormSeed * 0.2) * 20;
+    const intensity2 = 40 + Math.cos(stormSeed * 0.3) * 15;
 
     for (let lat = bounds.south; lat <= bounds.north; lat += gridSize) {
         for (let lon = bounds.west; lon <= bounds.east; lon += gridSize) {
-            // Create some variation in reflectivity
-            // Simulate storm patterns with moving clusters
+            // Normalize coordinates for storm calculations
             const x = (lon + 95) / 10;
             const y = (lat - 37) / 10;
 
-            // Multiple storm centers that move over time
-            const storm1 =
-                Math.exp(-((x - storm1X) ** 2 + (y - storm1Y) ** 2) / 2) *
-                intensity1;
-            const storm2 =
-                Math.exp(-((x - storm2X) ** 2 + (y - storm2Y) ** 2) / 4) *
-                intensity2;
-            const storm3 =
-                Math.exp(-((x - storm3X) ** 2 + (y - storm3Y) ** 2) / 3) *
-                intensity3;
+            // Storm 1: Larger, more intense system with realistic falloff
+            const dist1Sq = (x - storm1X) ** 2 + (y - storm1Y) ** 2;
+            const storm1 = Math.exp(-dist1Sq / 3.5) * intensity1;
+            
+            // Storm 2: Smaller, less intense system
+            const dist2Sq = (x - storm2X) ** 2 + (y - storm2Y) ** 2;
+            const storm2 = Math.exp(-dist2Sq / 2.0) * intensity2;
 
-            // Add some randomness and temporal variation
-            const noise = (Math.random() - 0.5) * 15;
-            const temporalNoise = Math.sin(timeOffset * 0.1 + x + y) * 5;
-            const dbz = storm1 + storm2 + storm3 + noise + temporalNoise;
+            // Light rain bands extending from storm centers
+            const rainBand1 = Math.exp(-dist1Sq / 8) * (intensity1 * 0.3);
+            const rainBand2 = Math.exp(-dist2Sq / 6) * (intensity2 * 0.3);
 
-            // Only include points with significant reflectivity
-            if (dbz > 5) {
+            // Add subtle noise for realistic texture (less than before)
+            const noise = (Math.random() - 0.5) * 8;
+            const temporalNoise = Math.sin(timeOffset * 0.05 + x * 0.3 + y * 0.3) * 3;
+            
+            // Combine all components
+            const dbz = storm1 + storm2 + rainBand1 + rainBand2 + noise + temporalNoise;
+
+            // Higher threshold for more realistic sparse coverage
+            // Real radar only shows where there's actual precipitation
+            if (dbz > 15) {
                 dataPoints.push({
                     lat: parseFloat(lat.toFixed(4)),
                     lon: parseFloat(lon.toFixed(4)),
-                    dbz: Math.min(75, Math.max(5, dbz)),
+                    dbz: Math.min(75, Math.max(15, dbz)),
                 });
             }
         }
@@ -217,7 +218,7 @@ async function generateSampleData(filePath) {
         dataPoints,
         bounds,
         metadata: {
-            minDbz: 5,
+            minDbz: 15,
             maxDbz: 75,
             pointCount: dataPoints.length,
             isSampleData: true,

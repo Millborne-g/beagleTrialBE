@@ -91,6 +91,32 @@ router.get("/timestamp/:timestamp", async (req, res) => {
 });
 
 /**
+ * GET /api/radar/frames
+ * Get multiple radar frames for animation
+ */
+router.get("/frames", async (req, res) => {
+    try {
+        const count = parseInt(req.query.count) || 10;
+        const baseUrl = getBaseUrl(req);
+        
+        const frames = await radarService.getRadarFrames(count, baseUrl);
+        res.json({
+            success: true,
+            data: frames,
+            timestamp: new Date().toISOString(),
+        });
+    } catch (error) {
+        console.error("Error in /frames endpoint:", error.message);
+        res.status(500).json({
+            success: false,
+            error: "Failed to fetch radar frames",
+            message: error.message,
+            timestamp: new Date().toISOString(),
+        });
+    }
+});
+
+/**
  * GET /api/health
  * Health check endpoint
  */

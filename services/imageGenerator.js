@@ -21,9 +21,9 @@ async function generateRadarImage(radarData, filename) {
 
         const { dataPoints, bounds } = radarData;
 
-        // Image dimensions
-        const width = 2000;
-        const height = 1500;
+        // Image dimensions - High resolution for professional appearance
+        const width = 4000;
+        const height = 3000;
 
         // Create a buffer for the image data (RGBA)
         const buffer = Buffer.alloc(width * height * 4);
@@ -56,12 +56,12 @@ async function generateRadarImage(radarData, filename) {
                 const color = getColorForDBZ(point.dbz);
 
                 // Draw larger points for thick, solid radar coverage
-                // Radius of 14 creates very thick, professional radar appearance
-                drawPoint(buffer, x, y, width, height, color, 12);
+                // Higher resolution allows larger radius for smooth appearance
+                drawPoint(buffer, x, y, width, height, color, 15);
             }
         }
 
-        // Create image using sharp with slight blur for professional smoothness
+        // Create image using sharp with enhanced smoothing for professional appearance
         const outputPath = path.join(IMAGES_DIR, filename);
 
         await sharp(buffer, {
@@ -71,8 +71,11 @@ async function generateRadarImage(radarData, filename) {
                 channels: 4,
             },
         })
-            .blur(1.5) // More blur for thick, smooth radar appearance
-            .png()
+            .blur(2.0) // Enhanced blur for smooth, professional radar appearance
+            .png({
+                compressionLevel: 6,
+                adaptiveFiltering: true,
+            })
             .toFile(outputPath);
 
         console.log("Radar image generated successfully:", filename);
