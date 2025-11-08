@@ -10,8 +10,8 @@ data/*.grib2.gz
 data/*.csv
 
 # Generated images
-images/*.png
-images/*.jpg
+# images/*.png
+# images/*.jpg
 
 # Logs
 *.log
